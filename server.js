@@ -36,7 +36,7 @@ function sendFile(res, filePath) {
   });
 }
 
-function adaptApi(req, res, url) {
+function adaptApi(handler, req, res, url) {
   req.query = Object.fromEntries(url.searchParams.entries());
   res.status = (code) => {
     res.statusCode = code;
@@ -48,7 +48,7 @@ function adaptApi(req, res, url) {
     }
     res.end(JSON.stringify(value));
   };
-  return apiHandler(req, res);
+  return handler(req, res);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -56,14 +56,12 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
 
     if (url.pathname === '/api/mcf') {
-      req.query = Object.fromEntries(url.searchParams.entries());
-      await apiHandler(req, res);
+      await adaptApi(apiHandler, req, res, url);
       return;
     }
 
     if (url.pathname === '/api/mission-live') {
-      req.query = Object.fromEntries(url.searchParams.entries());
-      await missionLiveHandler(req, res);
+      await adaptApi(missionLiveHandler, req, res, url);
       return;
     }
 
