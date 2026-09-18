@@ -9,7 +9,8 @@ const concept=Number(document.body.dataset.concept||1);
 const qs=(s,r=document)=>r.querySelector(s);
 const qsa=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let DATA=null,refreshTimer=null;
+const ACTIVE_MISSION_DEFAULT=238;
+let DATA=null,refreshTimer=null,missionLiveTimer=null;
 function ago(v){if(!v)return '—';const d=Date.now()-new Date(v).getTime();if(!Number.isFinite(d))return '—';const m=Math.round(d/60000);if(m<1)return 'agora';if(m<60)return 'há '+m+' min';const h=Math.round(m/60);if(h<24)return 'há '+h+' h';return 'há '+Math.round(h/24)+' d'}
 function dt(v){return v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'—'}
 function short(v,n=80){const s=String(v||'').split('\n')[0].trim();return s.length>n?s.slice(0,n-1)+'…':s}
@@ -17,7 +18,7 @@ function href(url,label,cls='text-link'){return url?'<a class="'+cls+'" href="'+
 function badge(t,k='neutral'){return '<span class="badge '+k+'">'+esc(t)+'</span>'}
 function panel(t,b,c=''){return '<section class="panel '+c+'"><div class="panel-title">'+t+'</div>'+b+'</section>'}
 function metric(i,v,l){return '<div class="metric"><div class="metric-icon">'+i+'</div><div><strong>'+esc(v)+'</strong><span>'+esc(l)+'</span></div></div>'}
-function sourceBadge(){if(!DATA)return '';const snap=/fallback/i.test(DATA.source||'')||DATA.warning;return '<span class="live-badge '+(snap?'snapshot':'live')+'"><i></i>'+(snap?'SNAPSHOT':'LIVE')+' · '+(snap?'snapshot':'GitHub · cache 10 min')+'</span>'}
+function sourceBadge(){if(!DATA)return '';const snap=/fallback/i.test(DATA.source||'')||DATA.warning;const missionFresh=DATA.missionFeedGeneratedAt&&currentTab()==='mission';return '<span class="live-badge '+(snap?'snapshot':'live')+'"><i></i>'+(snap?'SNAPSHOT':'LIVE')+' · '+(snap?'snapshot':missionFresh?'missão · ~30 s':'GitHub · cache 10 min')+'</span>'}
 function missionLive(){return DATA&&DATA.missionLive?DATA.missionLive:{}}
 function phaseFromMission(m,l){const hit=String((m&&m.body)||'').match(/\*\*(R\d+\s+—\s+[^*\n]+)\*\*/);return hit?hit[1]:(l.current_phase||'Fase não informada')}
 function roadDone(x){return /^(PASS|COMPLETED|DONE)/.test(String(x&&x.status||''))}
@@ -48,7 +49,7 @@ function mission(){
  const m=DATA.mission;
  if(!m)return tabHead('Missão','Nenhuma missão pública aberta')+'<div class="empty large">Nenhuma missão pública detectada.</div>';
  const l=missionLive(),road=l.roadmap||[],progress=missionRoadProgress(l,m),phase=phaseFromMission(m,l);
- const ev=l.evidence||{},tests=ev.runtime_tests_pass||'—',workers=ev.fanout_pass||'—';
+ const ev=l.evidence||{},tests=ev.runtime_tests_pass||ev.local_tests_total||'—',workers=ev.fanout_pass||ev.local_parallel_shards||'—';
  const audit=(l.r7_adversarial_audit&&l.r7_adversarial_audit.status)||'—';
  const blocker=(l.r4_executor&&l.r4_executor.blocker)||'G08 — backend cognitivo independente ainda não verificado dentro da bolha.';
  const history=(l.history||[]).slice(-7).reverse();
@@ -102,20 +103,47 @@ function renderNav(){
 
 function renderHeader(){const u=DATA.user||{};qs('#account').innerHTML=(u.avatar?'<img src="'+esc(u.avatar)+'" alt="">':'<span class="avatar-fallback">L</span>')+'<div><strong>@'+esc(u.login)+'</strong><span>'+DATA.repos.length+' repos MCF públicos</span></div>';qs('#freshness').innerHTML='<i class="status-dot live"></i><span>'+(/fallback/i.test(DATA.source||'')?'snapshot':'GitHub real')+' · '+ago(DATA.generatedAt)+'</span>'}
 function bindSettings(){qsa('[data-setting]').forEach(b=>b.onclick=()=>{const k=b.dataset.setting,on=!b.classList.contains('on');b.classList.toggle('on',on);localStorage.setItem('mcf:'+k,String(on));if(k==='compact')document.body.classList.toggle('compact',on);if(k==='autoRefresh')setupRefresh()})}
+function selectedMissionNumber(){
+ const params=new URLSearchParams(location.search);
+ const requested=Number(params.get('mission'));
+ return Number.isFinite(requested)&&requested>0?requested:(concept===3?ACTIVE_MISSION_DEFAULT:234)
+}
+async function hydrateMissionLive(render=true){
+ if(!DATA||concept!==3)return;
+ try{
+  const r=await fetch('/api/mission-live?mission='+selectedMissionNumber()+'&_='+Date.now(),{headers:{Accept:'application/json'},cache:'no-store'});
+  if(!r.ok)throw new Error('MISSION LIVE '+r.status);
+  const live=await r.json();
+  DATA.mission={...(DATA.mission||{}),...(live.mission||{}),body:(DATA.mission&&DATA.mission.body)||''};
+  DATA.missionLive=live.missionLive||{};
+  DATA.missionFeedGeneratedAt=live.generatedAt;
+  if(render){renderHeader();renderTab(currentTab())}
+ }catch(e){
+  if(!DATA.missionLiveErrorAt)DATA.missionLiveErrorAt=new Date().toISOString();
+ }
+}
 async function loadData(silent=false){
  if(!silent)qs('#content').innerHTML='<div class="loading"><i></i><span>Carregando dados reais do GitHub…</span></div>';
  try{
-  const missionQuery=concept===3?'?mission=234':'';
+  const missionQuery=concept===3?'?mission='+selectedMissionNumber():'';
   const r=await fetch('/api/mcf'+missionQuery,{headers:{Accept:'application/json'}});
   if(!r.ok)throw new Error('API '+r.status);
-  DATA=await r.json();renderHeader();renderTab(currentTab());qs('#fatal').hidden=true
+  DATA=await r.json();
+  await hydrateMissionLive(false);
+  renderHeader();renderTab(currentTab());qs('#fatal').hidden=true
  }catch(e){
   qs('#fatal').hidden=false;qs('#fatal').textContent='Falha ao carregar dados reais: '+e.message;
   if(!DATA)qs('#content').innerHTML='<div class="empty large">Não foi possível carregar a API.</div>'
  }
 }
 
-function setupRefresh(){clearInterval(refreshTimer);if(localStorage.getItem('mcf:autoRefresh')!=='false')refreshTimer=setInterval(()=>loadData(true),60000)}
+function setupRefresh(){
+ clearInterval(refreshTimer);clearInterval(missionLiveTimer);
+ if(localStorage.getItem('mcf:autoRefresh')!=='false'){
+  refreshTimer=setInterval(()=>loadData(true),600000);
+  if(concept===3)missionLiveTimer=setInterval(()=>hydrateMissionLive(true),30000)
+ }
+}
 function bindGlobal(){addEventListener('hashchange',()=>renderTab(currentTab()));qs('#refreshBtn').onclick=()=>loadData();qs('#openGithub').onclick=()=>window.open('https://github.com/leon337/multiagent-collaboration-framework','_blank','noopener')}
 renderNav();bindGlobal();loadData();setupRefresh();
 
