@@ -9,7 +9,7 @@ const concept=Number(document.body.dataset.concept||1);
 const qs=(s,r=document)=>r.querySelector(s);
 const qsa=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ACTIVE_MISSION_DEFAULT=238;
+const ACTIVE_MISSION_DEFAULT=241;
 let DATA=null,refreshTimer=null,missionLiveTimer=null;
 function ago(v){if(!v)return '—';const d=Date.now()-new Date(v).getTime();if(!Number.isFinite(d))return '—';const m=Math.round(d/60000);if(m<1)return 'agora';if(m<60)return 'há '+m+' min';const h=Math.round(m/60);if(h<24)return 'há '+h+' h';return 'há '+Math.round(h/24)+' d'}
 function dt(v){return v?new Date(v).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'—'}
