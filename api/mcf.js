@@ -3,6 +3,8 @@ const path = require('path');
 
 const OWNER = 'leon337';
 const PRIMARY = 'multiagent-collaboration-framework';
+const LIVE_BRANCH = 'main';
+const LIVE_DASHBOARD_PATH = 'artifacts/phases/PHASE-02-MCF-HARNESS-V2-PROTOTYPE/LIVE-DASHBOARD.json';
 const REPO_ALLOWLIST = [
   'multiagent-collaboration-framework',
   'cloud-infrastructure',
@@ -35,6 +37,48 @@ async function jsonFetch(url, accept) {
   return response.json();
 }
 
+async function safeFetch(url, accept, fallbackValue) {
+  try {
+    return await jsonFetch(url, accept);
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function missionFromLive(live) {
+  if (!live) return null;
+  const issueMatch = live.links && live.links.issue
+    ? String(live.links.issue).match(/\/issues\/(\d+)/)
+    : null;
+  const checks = (live.roadmap || []).map((item) => {
+    const status = String(item.status || '');
+    const done = /PASS|STABLE|COMPLETED|DONE/.test(status) && !/PENDING|BLOCKED/.test(status);
+    return { done, text: item.id + ' — ' + item.name + ' — ' + status.replaceAll('_', ' ') };
+  });
+  const done = checks.filter((x) => x.done).length;
+  const body = [
+    '# ' + (live.title || 'MCF Harness V2'),
+    '',
+    '**Status:** ' + (live.status || 'UNKNOWN'),
+    '**Fase:** ' + (live.current_phase || 'UNKNOWN'),
+    '',
+    '## Roadmap',
+    ...checks.map((x) => '- [' + (x.done ? 'x' : ' ') + '] ' + x.text)
+  ].join('\n');
+  return {
+    number: issueMatch ? Number(issueMatch[1]) : 234,
+    title: live.status === 'ENTREGUE' ? 'MCF-Harness V2 — 2.0.0 ENTREGUE' : (live.title || 'MCF Harness V2'),
+    state: live.status === 'ENTREGUE' ? 'closed' : 'open',
+    url: live.links && live.links.issue,
+    updatedAt: live.updated_at,
+    createdAt: null,
+    body,
+    labels: [],
+    checklist: checks,
+    progress: checks.length ? Math.round((done / checks.length) * 100) : null
+  };
+}
+
 function parseAgents(markdown) {
   const rows = String(markdown || '').split('\n');
   const agents = [];
@@ -60,9 +104,9 @@ function issueToMission(issue) {
     number: issue.number,
     title: issue.title,
     state: issue.state,
-    url: issue.html_url,
-    updatedAt: issue.updated_at,
-    createdAt: issue.created_at,
+    url: issue.html_url || issue.url,
+    updatedAt: issue.updated_at || issue.updatedAt,
+    createdAt: issue.created_at || issue.createdAt,
     body,
     labels: (issue.labels || []).map((label) => typeof label === 'string' ? label : label.name),
     checklist: checks,
@@ -92,15 +136,17 @@ module.exports = async function handler(req, res) {
       events,
       commits,
       releases,
-      agentMarkdown
+      agentMarkdown,
+      liveDashboardRaw
     ] = await Promise.all([
-      jsonFetch(base + '/users/' + OWNER + '/repos?per_page=100&sort=updated&type=owner'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/issues?state=open&per_page=50&sort=updated'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/pulls?state=open&per_page=50&sort=updated'),
-      jsonFetch(base + '/users/' + OWNER + '/events/public?per_page=30'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/commits?per_page=20'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/releases?per_page=10'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/contents/docs/agentes/README.md', 'application/vnd.github.raw+json')
+      safeFetch(base + '/users/' + OWNER + '/repos?per_page=100&sort=updated&type=owner', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/issues?state=all&per_page=100&sort=updated', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/pulls?state=open&per_page=50&sort=updated', null, []),
+      safeFetch(base + '/users/' + OWNER + '/events/public?per_page=30', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/commits?per_page=20', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/releases?per_page=10', null, []),
+      safeFetch('https://raw.githubusercontent.com/' + OWNER + '/' + PRIMARY + '/' + LIVE_BRANCH + '/docs/agentes/README.md', 'application/vnd.github.raw+json', ''),
+      safeFetch('https://raw.githubusercontent.com/' + OWNER + '/' + PRIMARY + '/' + LIVE_BRANCH + '/' + LIVE_DASHBOARD_PATH, 'application/vnd.github.raw+json', null)
     ]);
 
     const repos = allRepos
@@ -127,10 +173,10 @@ module.exports = async function handler(req, res) {
       .map((issue) => ({
         number: issue.number,
         title: issue.title,
-        url: issue.html_url,
+        url: issue.html_url || issue.url,
         state: issue.state,
-        createdAt: issue.created_at,
-        updatedAt: issue.updated_at,
+        createdAt: issue.created_at || issue.createdAt,
+        updatedAt: issue.updated_at || issue.updatedAt,
         comments: issue.comments,
         labels: (issue.labels || []).map((label) => typeof label === 'string' ? label : label.name),
         body: issue.body || ''
@@ -186,16 +232,35 @@ module.exports = async function handler(req, res) {
     }));
 
     const agents = parseAgents(agentMarkdown);
-    const missionCandidate = issues
-      .filter((issue) => /^MCF-|\bmission\b/i.test(issue.title))
-      .sort((a, b) => b.number - a.number)[0] || issues[0] || null;
+
+    let missionLive = null;
+    if (liveDashboardRaw) {
+      try { missionLive = JSON.parse(liveDashboardRaw); } catch {}
+    }
+
+    const requestedMission = Number(req.query && req.query.mission);
+    const liveIssueMatch = missionLive && missionLive.links && missionLive.links.issue
+      ? String(missionLive.links.issue).match(/\/issues\/(\d+)/)
+      : null;
+    const liveIssueNumber = liveIssueMatch ? Number(liveIssueMatch[1]) : null;
+    const preferredMissionNumber = Number.isFinite(requestedMission) && requestedMission > 0
+      ? requestedMission
+      : liveIssueNumber;
+
+    const missionCandidate =
+      (preferredMissionNumber ? issues.find((issue) => issue.number === preferredMissionNumber) : null) ||
+      issues
+        .filter((issue) => /^MCF-|\bmission\b/i.test(issue.title))
+        .sort((a, b) => b.number - a.number)[0] ||
+      issues[0] ||
+      null;
 
     const primaryRepo = repos.find((repo) => repo.name === PRIMARY) || null;
     const avatar = primaryRepo && primaryRepo.ownerAvatar;
 
     const payload = {
       generatedAt: new Date().toISOString(),
-      source: 'GitHub REST API — public data',
+      source: 'GitHub public data + stable raw mission feed',
       cacheSeconds: 600,
       user: {
         login: OWNER,
@@ -210,7 +275,8 @@ module.exports = async function handler(req, res) {
       commits: commitData,
       releases: releaseData,
       agents,
-      mission: issueToMission(missionCandidate),
+      mission: issueToMission(missionCandidate) || missionFromLive(missionLive),
+      missionLive,
       localIntegrations: {
         voiceHub: {
           scope: 'local-only',
