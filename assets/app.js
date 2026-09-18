@@ -49,6 +49,8 @@ function mission(){
  const m=DATA.mission;
  if(!m)return tabHead('Missão','Nenhuma missão pública aberta')+'<div class="empty large">Nenhuma missão pública detectada.</div>';
  const l=missionLive(),road=l.roadmap||[],progress=missionRoadProgress(l,m),phase=phaseFromMission(m,l);
+ const checklist=m.checklist||[],checkDone=checklist.filter(x=>x.done).length;
+ const progressCount=checklist.length?(checkDone+'/'+checklist.length+' itens concluídos'):(road.filter(roadDone).length+'/'+road.length+' etapas concluídas');
  const ev=l.evidence||{},tests=ev.runtime_tests_pass||ev.local_tests_total||'—',workers=ev.fanout_pass||ev.local_parallel_shards||'—';
  const audit=(l.r7_adversarial_audit&&l.r7_adversarial_audit.status)||'—';
  const blocker=(l.r4_executor&&l.r4_executor.blocker)||'G08 — backend cognitivo independente ainda não verificado dentro da bolha.';
@@ -68,7 +70,7 @@ function mission(){
      '<div><strong>'+esc(workers)+'</strong><span>workers</span></div>'+
      '<div><strong>'+esc(/PASS/.test(audit)?'PASS':'—')+'</strong><span>auditoria</span></div>'+
    '</section>'+
-   '<section class="mission-progress-card"><div class="row"><div><span class="eyebrow">PROGRESSO</span><strong>'+progress+'%</strong></div><small>'+road.filter(roadDone).length+'/'+(road.length||m.checklist.length)+' etapas concluídas</small></div><div class="mission-progress-track"><i style="width:'+progress+'%"></i></div></section>'+
+   '<section class="mission-progress-card"><div class="row"><div><span class="eyebrow">PROGRESSO</span><strong>'+progress+'%</strong></div><small>'+esc(progressCount)+'</small></div><div class="mission-progress-track"><i style="width:'+progress+'%"></i></div></section>'+
    '<section class="mission-now"><span class="eyebrow">AGORA</span><h3>'+esc(phase)+'</h3><p>Prioridade: fechar recovery verificável, persistir evidência e provar continuidade sem depender do processo anterior.</p></section>'+
    '<section class="mission-blocker"><span class="eyebrow">BLOQUEIO PRINCIPAL</span><h3>G08 · Cognição independente</h3><p>'+esc(blocker)+'</p></section>'+
    '<div class="mission-v2-columns">'+
