@@ -17,7 +17,7 @@ const MISSION_FEEDS = {
     title: 'MCF Harness V2.1 Hardening'
   },
   241: {
-    branch: 'feature/mcf-harness-graph-engine-2.2-20260918',
+    branch: 'main',
     checklistPath: 'artifacts/phases/PHASE-04-MCF-HARNESS-GRAPH-ENGINE-2.2/CHECKLIST.md',
     livePath: 'artifacts/phases/PHASE-04-MCF-HARNESS-GRAPH-ENGINE-2.2/LIVE-DASHBOARD.json',
     issueUrl: 'https://github.com/leon337/multiagent-collaboration-framework/issues/241',
