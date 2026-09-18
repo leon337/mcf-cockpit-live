@@ -15,6 +15,13 @@ const MISSION_FEEDS = {
     livePath: 'artifacts/phases/PHASE-03-MCF-HARNESS-2.1-HARDENING/LIVE-DASHBOARD.json',
     issueUrl: 'https://github.com/leon337/multiagent-collaboration-framework/issues/238',
     title: 'MCF Harness V2.1 Hardening'
+  },
+  241: {
+    branch: 'feature/mcf-harness-graph-engine-2.2-20260918',
+    checklistPath: 'artifacts/phases/PHASE-04-MCF-HARNESS-GRAPH-ENGINE-2.2/CHECKLIST.md',
+    livePath: 'artifacts/phases/PHASE-04-MCF-HARNESS-GRAPH-ENGINE-2.2/LIVE-DASHBOARD.json',
+    issueUrl: 'https://github.com/leon337/multiagent-collaboration-framework/issues/241',
+    title: 'MCF Harness Graph Engine 2.2'
   }
 };
 
@@ -54,7 +61,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=15');
 
   const requested = Number(req.query && req.query.mission);
-  const missionNumber = Number.isFinite(requested) && MISSION_FEEDS[requested] ? requested : 238;
+  const missionNumber = Number.isFinite(requested) && MISSION_FEEDS[requested] ? requested : 241;
   const config = MISSION_FEEDS[missionNumber];
   const bucket = Math.floor(Date.now() / 15000);
 
