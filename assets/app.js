@@ -4,6 +4,7 @@ const TABS=[
 ['agents','Agentes','♟'],['voicehub','VoiceHub','◖'],['linux','Ambiente Linux','♜'],
 ['reports','Relatórios','▥'],['settings','Configurações','⚙']
 ];
+const MOBILE_TABS=['overview','mission','agents','reports','settings'];
 const concept=Number(document.body.dataset.concept||1);
 const qs=(s,r=document)=>r.querySelector(s);
 const qsa=(s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -16,7 +17,15 @@ function href(url,label,cls='text-link'){return url?'<a class="'+cls+'" href="'+
 function badge(t,k='neutral'){return '<span class="badge '+k+'">'+esc(t)+'</span>'}
 function panel(t,b,c=''){return '<section class="panel '+c+'"><div class="panel-title">'+t+'</div>'+b+'</section>'}
 function metric(i,v,l){return '<div class="metric"><div class="metric-icon">'+i+'</div><div><strong>'+esc(v)+'</strong><span>'+esc(l)+'</span></div></div>'}
-function sourceBadge(){if(!DATA)return '';const snap=/fallback/i.test(DATA.source||'')||DATA.warning;return '<span class="live-badge '+(snap?'snapshot':'live')+'"><i></i>'+(snap?'SNAPSHOT':'LIVE')+' · '+esc(DATA.source)+'</span>'}
+function sourceBadge(){if(!DATA)return '';const snap=/fallback/i.test(DATA.source||'')||DATA.warning;return '<span class="live-badge '+(snap?'snapshot':'live')+'"><i></i>'+(snap?'SNAPSHOT':'LIVE')+' · '+(snap?'snapshot':'GitHub · cache 10 min')+'</span>'}
+function missionLive(){return DATA&&DATA.missionLive?DATA.missionLive:{}}
+function phaseFromMission(m,l){const hit=String((m&&m.body)||'').match(/\*\*(R\d+\s+—\s+[^*\n]+)\*\*/);return hit?hit[1]:(l.current_phase||'Fase não informada')}
+function roadDone(x){return /^(PASS|COMPLETED|DONE)/.test(String(x&&x.status||''))}
+function roadTone(x){const s=String(x&&x.status||'');if(roadDone(x))return 'done';if(/IN_PROGRESS|PARTIAL|BLOCKED/.test(s))return 'active';return 'pending'}
+function cleanStatus(v){return String(v||'—').replaceAll('_',' ')}
+function actorLabel(v){const x=String(v||'MCF');if(x==='auditor-technical')return 'Auditor';if(x==='worker-team')return 'Time local';if(x==='worker-tests')return 'Testes';return x}
+function eventTypeLabel(v){const map={R7_TECHNICAL_AUDIT:'Auditoria',R6_WORKSPACE_CAPABILITIES:'Workspace',R5_SESSIONS:'Sessões',R4_EXECUTOR:'Executor',HISTORY_E2E:'Histórico',HISTORY_PIPELINE:'Histórico',LIVE_SURFACE:'Painel',VERCEL:'Vercel',BLOCKER:'Bloqueio'};return map[v]||String(v||'Evento').replaceAll('_',' ')}
+function missionRoadProgress(l,m){const r=l.roadmap||[];if(m&&m.progress!=null)return m.progress;if(!r.length)return 0;return Math.round(r.filter(roadDone).length/r.length*100)}
 function repoCard(r){return '<article class="repo-card"><div class="repo-top"><div class="repo-mark">'+esc(r.name.slice(0,2).toUpperCase())+'</div><div class="repo-head">'+href(r.url,r.name,'repo-name')+'<span>'+esc(r.description||'Sem descrição pública')+'</span></div></div><div class="repo-meta"><span>'+esc(r.defaultBranch||'—')+'</span><span>'+esc(r.language||'—')+'</span><span>★ '+(r.stars||0)+'</span><span>⑂ '+(r.forks||0)+'</span><span>◉ '+(r.openIssues||0)+'</span></div><div class="repo-foot">Atualizado '+ago(r.updatedAt)+'</div></article>'}
 function issueItem(i){return '<article class="list-item"><i class="status-dot issue"></i><div class="list-copy">'+href(i.url,'#'+i.number+' '+i.title,'item-title')+'<div class="sub">'+ago(i.updatedAt)+' · '+(i.comments||0)+' comentários</div><div class="labels">'+(i.labels||[]).slice(0,5).map(x=>badge(x)).join('')+'</div></div></article>'}
 function prItem(p){return '<article class="list-item"><i class="status-dot pr"></i><div class="list-copy">'+href(p.url,'#'+p.number+' '+p.title,'item-title')+'<div class="sub">'+esc(p.head||'—')+' → '+esc(p.base||'—')+' · '+ago(p.updatedAt)+'</div>'+badge(p.draft?'DRAFT':'OPEN',p.draft?'warning':'success')+'</div></article>'}
@@ -35,7 +44,40 @@ function overview(){
 }
 function tabHead(t,s){return '<div class="tab-head"><div><span class="eyebrow">MCF LIVE</span><h1>'+esc(t)+'</h1><p>'+esc(s)+'</p></div>'+sourceBadge()+'</div>'}
 function missionChecklist(){const m=DATA.mission;if(!m)return '<div class="empty">Sem missão pública.</div>';if(m.checklist&&m.checklist.length)return m.checklist.map(x=>'<div class="check-row '+(x.done?'done':'')+'"><i>'+(x.done?'✓':'○')+'</i><span>'+esc(x.text)+'</span></div>').join('');const ls=String(m.body||'').split('\n').filter(x=>/^- |^\d+\./.test(x.trim())).slice(0,12);return ls.length?ls.map(x=>'<div class="check-row"><i>•</i><span>'+esc(x.replace(/^[-\d.\s]+/,''))+'</span></div>').join(''):'<div class="empty">Sem checklist estruturado.</div>'}
-function mission(){const m=DATA.mission;if(!m)return tabHead('Missão','Nenhuma missão pública aberta')+'<div class="empty large">Nenhuma missão pública detectada.</div>';return tabHead('Missão','Issue #'+m.number+' · atualizada '+ago(m.updatedAt))+'<div class="mission-detail"><div class="mission-detail-head"><div>'+missionBadge()+'<h2>'+esc(m.title)+'</h2></div>'+href(m.url,'Abrir no GitHub','button primary')+'</div><div class="mission-facts"><div><span>Estado</span><strong>'+esc(m.state)+'</strong></div><div><span>Criada</span><strong>'+dt(m.createdAt)+'</strong></div><div><span>Atualizada</span><strong>'+dt(m.updatedAt)+'</strong></div><div><span>Checklist</span><strong>'+(m.progress==null?'não estruturado':m.progress+'%')+'</strong></div></div><div class="split">'+panel('Checklist / DoD',missionChecklist())+panel('Corpo da issue','<pre class="issue-body">'+esc(m.body||'Sem descrição pública.')+'</pre>')+'</div></div>'}
+function mission(){
+ const m=DATA.mission;
+ if(!m)return tabHead('Missão','Nenhuma missão pública aberta')+'<div class="empty large">Nenhuma missão pública detectada.</div>';
+ const l=missionLive(),road=l.roadmap||[],progress=missionRoadProgress(l,m),phase=phaseFromMission(m,l);
+ const ev=l.evidence||{},tests=ev.runtime_tests_pass||'—',workers=ev.fanout_pass||'—';
+ const audit=(l.r7_adversarial_audit&&l.r7_adversarial_audit.status)||'—';
+ const blocker=(l.r4_executor&&l.r4_executor.blocker)||'G08 — backend cognitivo independente ainda não verificado dentro da bolha.';
+ const history=(l.history||[]).slice(-7).reverse();
+ const roadHtml=road.length?road.map(x=>'<div class="mission-road-row '+roadTone(x)+'"><i></i><b>'+esc(x.id)+'</b><span>'+esc(x.name)+'</span><em>'+esc(cleanStatus(x.status))+'</em></div>').join(''):missionChecklist();
+ const histHtml=history.length?history.map(h=>'<article class="mission-history-row"><div><strong>'+esc(actorLabel(h.actor))+'</strong><span>'+esc(eventTypeLabel(h.type))+'</span></div><p>'+esc(h.text||'')+'</p><time>'+esc(dt(h.at))+'</time></article>').join(''):'<div class="empty">Ainda não há histórico estruturado no feed vivo.</div>';
+ return tabHead('Missão','Issue #'+m.number+' · '+ago(m.updatedAt))+
+ '<div class="mission-v2">'+
+   '<section class="mission-v2-hero">'+
+     '<div class="mission-v2-top"><span class="eyebrow">ISSUE #'+m.number+'</span><span class="mission-live-dot">● LIVE</span></div>'+
+     '<h2>MCF Harness V2</h2><p class="mission-v2-sub">Runtime Multiagente na Bolha</p>'+
+     '<div class="mission-phase">'+esc(phase)+'</div>'+
+     '<div class="mission-v2-actions">'+href(m.url,'Abrir Issue','button primary')+'<span class="mission-update">Atualizada '+esc(ago(m.updatedAt))+'</span></div>'+
+   '</section>'+
+   '<section class="mission-v2-metrics">'+
+     '<div><strong>'+esc(tests)+'</strong><span>testes</span></div>'+
+     '<div><strong>'+esc(workers)+'</strong><span>workers</span></div>'+
+     '<div><strong>'+esc(/PASS/.test(audit)?'PASS':'—')+'</strong><span>auditoria</span></div>'+
+   '</section>'+
+   '<section class="mission-progress-card"><div class="row"><div><span class="eyebrow">PROGRESSO</span><strong>'+progress+'%</strong></div><small>'+road.filter(roadDone).length+'/'+(road.length||m.checklist.length)+' etapas concluídas</small></div><div class="mission-progress-track"><i style="width:'+progress+'%"></i></div></section>'+
+   '<section class="mission-now"><span class="eyebrow">AGORA</span><h3>'+esc(phase)+'</h3><p>Prioridade: fechar recovery verificável, persistir evidência e provar continuidade sem depender do processo anterior.</p></section>'+
+   '<section class="mission-blocker"><span class="eyebrow">BLOQUEIO PRINCIPAL</span><h3>G08 · Cognição independente</h3><p>'+esc(blocker)+'</p></section>'+
+   '<div class="mission-v2-columns">'+
+     '<section class="panel mission-roadmap"><div class="panel-title">Roadmap vivo</div>'+roadHtml+'</section>'+
+     '<section class="panel mission-history"><div class="panel-title">Histórico vivo</div>'+histHtml+'</section>'+
+   '</div>'+
+   '<details class="mission-technical"><summary>Detalhes técnicos da Issue</summary><pre class="issue-body">'+esc(m.body||'Sem descrição pública.')+'</pre></details>'+
+ '</div>';
+}
+
 function repos(){return tabHead('Repositórios',DATA.repos.length+' repositórios públicos observados')+'<div class="repo-grid large">'+DATA.repos.map(repoCard).join('')+'</div><div class="truth-note">Repositórios privados não são expostos neste cockpit público.</div>'}
 function prs(){return tabHead('Pull Requests',DATA.pulls.length+' PRs abertos no repositório canônico')+'<div class="list-panel">'+(DATA.pulls.length?DATA.pulls.map(prItem).join(''):'<div class="empty large">Nenhum PR aberto.</div>')+'</div>'}
 function issues(){return tabHead('Issues',DATA.issues.length+' issues abertas no repositório canônico')+'<div class="list-panel">'+(DATA.issues.length?DATA.issues.map(issueItem).join(''):'<div class="empty large">Nenhuma issue aberta.</div>')+'</div>'}
@@ -49,10 +91,30 @@ function settings(){return tabHead('Configurações','Preferências locais deste
 function ecosystem(){const nodes=DATA.repos.slice(0,7);return '<div class="ecosystem-map"><div class="map-core">MCF<small>núcleo</small></div>'+nodes.map((r,i)=>{const a=Math.PI*2*i/nodes.length-Math.PI/2,x=50+Math.cos(a)*38,y=50+Math.sin(a)*35;return '<a href="'+esc(r.url)+'" target="_blank" class="map-node" style="left:'+x+'%;top:'+y+'%">'+esc(r.name.replace('multiagent-collaboration-framework','framework').replace('mcf-',''))+'</a>'}).join('')+'</div>'}
 function renderTab(name){const f={overview,mission,repos,prs,issues,github,agents,voicehub,linux,reports,settings}[name]||overview;qs('#content').innerHTML=f();qsa('[data-tab]').forEach(a=>a.classList.toggle('active',a.dataset.tab===name));if(name==='settings')bindSettings();document.body.classList.toggle('compact',localStorage.getItem('mcf:compact')==='true')}
 function currentTab(){const h=location.hash.slice(1);return TABS.some(x=>x[0]===h)?h:'overview'}
-function renderNav(){qs('#nav').innerHTML=TABS.map(x=>'<a href="#'+x[0]+'" data-tab="'+x[0]+'"><span>'+x[2]+'</span><b>'+esc(x[1])+'</b></a>').join('');const titles={1:['MCF Cockpit','Seu ecossistema, em movimento.'],2:['GitHub + MCF','Mission Cockpit'],3:['MCF Startup Workspace','Seu ecossistema sempre ativo.'],4:['MCF Mission Control','Código · missão · impacto']};const t=titles[concept]||titles[1];qs('#brandTitle').textContent=t[0];qs('#brandSub').textContent=t[1]}
+function renderNav(){
+ qs('#nav').innerHTML=TABS.map(x=>'<a href="#'+x[0]+'" data-tab="'+x[0]+'"><span>'+x[2]+'</span><b>'+esc(x[1])+'</b></a>').join('');
+ const titles={1:['MCF Cockpit','Seu ecossistema, em movimento.'],2:['GitHub + MCF','Mission Cockpit'],3:['MCF Startup Workspace','Seu ecossistema sempre ativo.'],4:['MCF Mission Control','Código · missão · impacto']};
+ const t=titles[concept]||titles[1];qs('#brandTitle').textContent=t[0];qs('#brandSub').textContent=t[1];
+ let mobile=qs('#mobileNav');
+ if(!mobile){mobile=document.createElement('nav');mobile.id='mobileNav';mobile.className='mobile-nav';document.body.appendChild(mobile)}
+ mobile.innerHTML=MOBILE_TABS.map(id=>{const x=TABS.find(t=>t[0]===id);const label=id==='overview'?'Início':id==='settings'?'Ajustes':x[1];return '<a href="#'+id+'" data-tab="'+id+'"><span>'+x[2]+'</span><b>'+esc(label)+'</b></a>'}).join('');
+}
+
 function renderHeader(){const u=DATA.user||{};qs('#account').innerHTML=(u.avatar?'<img src="'+esc(u.avatar)+'" alt="">':'<span class="avatar-fallback">L</span>')+'<div><strong>@'+esc(u.login)+'</strong><span>'+DATA.repos.length+' repos MCF públicos</span></div>';qs('#freshness').innerHTML='<i class="status-dot live"></i><span>'+(/fallback/i.test(DATA.source||'')?'snapshot':'GitHub real')+' · '+ago(DATA.generatedAt)+'</span>'}
 function bindSettings(){qsa('[data-setting]').forEach(b=>b.onclick=()=>{const k=b.dataset.setting,on=!b.classList.contains('on');b.classList.toggle('on',on);localStorage.setItem('mcf:'+k,String(on));if(k==='compact')document.body.classList.toggle('compact',on);if(k==='autoRefresh')setupRefresh()})}
-async function loadData(silent=false){if(!silent)qs('#content').innerHTML='<div class="loading"><i></i><span>Carregando dados reais do GitHub…</span></div>';try{const r=await fetch('/api/mcf',{headers:{Accept:'application/json'}});if(!r.ok)throw new Error('API '+r.status);DATA=await r.json();renderHeader();renderTab(currentTab());qs('#fatal').hidden=true}catch(e){qs('#fatal').hidden=false;qs('#fatal').textContent='Falha ao carregar dados reais: '+e.message;if(!DATA)qs('#content').innerHTML='<div class="empty large">Não foi possível carregar a API.</div>'}}
+async function loadData(silent=false){
+ if(!silent)qs('#content').innerHTML='<div class="loading"><i></i><span>Carregando dados reais do GitHub…</span></div>';
+ try{
+  const missionQuery=concept===3?'?mission=234':'';
+  const r=await fetch('/api/mcf'+missionQuery,{headers:{Accept:'application/json'}});
+  if(!r.ok)throw new Error('API '+r.status);
+  DATA=await r.json();renderHeader();renderTab(currentTab());qs('#fatal').hidden=true
+ }catch(e){
+  qs('#fatal').hidden=false;qs('#fatal').textContent='Falha ao carregar dados reais: '+e.message;
+  if(!DATA)qs('#content').innerHTML='<div class="empty large">Não foi possível carregar a API.</div>'
+ }
+}
+
 function setupRefresh(){clearInterval(refreshTimer);if(localStorage.getItem('mcf:autoRefresh')!=='false')refreshTimer=setInterval(()=>loadData(true),60000)}
 function bindGlobal(){addEventListener('hashchange',()=>renderTab(currentTab()));qs('#refreshBtn').onclick=()=>loadData();qs('#openGithub').onclick=()=>window.open('https://github.com/leon337/multiagent-collaboration-framework','_blank','noopener')}
 renderNav();bindGlobal();loadData();setupRefresh();

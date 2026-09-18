@@ -78,3 +78,38 @@ body[data-concept="4"]{--bg:#030713;--panel:#081020;--line:#172c47;--blue:#00d0f
 @media(max-width:1180px){:root{--sidebar:190px}.layout-three,.workspace-grid{grid-template-columns:230px minmax(0,1fr)}.feed-rail,.workspace-side{grid-column:1/-1}.future-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.repo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.agent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:780px){:root{--sidebar:0px;--topbar:62px}.shell{display:block}.sidebar{display:none}.topbar{position:sticky;padding:0 12px}.main{padding:14px}.metrics-grid,.repo-grid,.repo-grid.large,.agent-grid,.integration-layout,.split,.overview-grid,.future-grid,.layout-three,.workspace-grid{grid-template-columns:1fr}.future-grid .hero-wide,.future-grid .map-panel,.overview-grid .hero-line,.span-2{grid-column:1}.mission-facts{grid-template-columns:repeat(2,1fr)}.tab-head,.hero-line,.hero-wide{flex-direction:column}.top-actions #openGithub{display:none}}
 
+
+
+/* === MOBILE MISSION UX V3 === */
+.mobile-nav{display:none}
+.mission-v2{display:grid;gap:14px;max-width:1160px}
+.mission-v2-hero,.mission-progress-card,.mission-now,.mission-blocker,.mission-technical{background:linear-gradient(180deg,rgba(15,29,42,.96),rgba(9,20,30,.96));border:1px solid #20394a;border-radius:18px;padding:20px}
+.mission-v2-top,.mission-v2-actions,.mission-progress-card>.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mission-live-dot{font-size:12px;font-weight:800;color:#58e69a;letter-spacing:.08em}
+.mission-v2-hero h2{margin:8px 0 0;font-size:clamp(30px,4vw,48px);line-height:1.02;letter-spacing:-.035em}
+.mission-v2-sub{margin:6px 0 14px;font-size:17px;color:#93adbd}
+.mission-phase{display:inline-flex;max-width:100%;padding:9px 12px;border:1px solid rgba(70,181,255,.35);background:rgba(35,130,200,.08);border-radius:12px;color:#d8f2ff;font-weight:750}
+.mission-v2-actions{margin-top:16px;justify-content:flex-start}.mission-update{font-size:12px;color:#7894a5}
+.mission-v2-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mission-v2-metrics>div{background:#0d1b26;border:1px solid #20394a;border-radius:15px;padding:15px;text-align:center}
+.mission-v2-metrics strong{display:block;font-size:24px;line-height:1.1}.mission-v2-metrics span{display:block;margin-top:4px;color:#7e9bac;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.mission-progress-card .row>div{display:flex;align-items:baseline;gap:10px}.mission-progress-card strong{font-size:26px}.mission-progress-card small{color:#7e9bac}
+.mission-progress-track{height:9px;background:#132633;border-radius:999px;overflow:hidden;margin-top:14px}.mission-progress-track i{display:block;height:100%;background:linear-gradient(90deg,#24a8ff,#48e48f);border-radius:inherit}
+.mission-now{border-color:rgba(61,169,255,.35)}.mission-now h3,.mission-blocker h3{margin:6px 0;font-size:18px}.mission-now p,.mission-blocker p{margin:0;color:#a4bac7}
+.mission-blocker{border-color:rgba(255,186,69,.28);background:linear-gradient(180deg,rgba(42,31,15,.55),rgba(16,22,28,.96))}
+.mission-v2-columns{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:14px}
+.mission-road-row{display:grid;grid-template-columns:10px 38px minmax(0,1fr) auto;gap:9px;align-items:center;padding:11px 0;border-bottom:1px solid #17303d}
+.mission-road-row:last-child{border-bottom:0}.mission-road-row i{width:8px;height:8px;border-radius:50%;background:#526b78}.mission-road-row.done i{background:#4ee292;box-shadow:0 0 9px #4ee29266}.mission-road-row.active i{background:#ffc857}.mission-road-row b{font-size:12px;color:#8fd8ff}.mission-road-row span{min-width:0}.mission-road-row em{font-style:normal;font-size:10px;color:#7894a5;text-align:right}
+.mission-history-row{padding:12px 0;border-bottom:1px solid #17303d}.mission-history-row:last-child{border-bottom:0}.mission-history-row>div{display:flex;align-items:center;justify-content:space-between;gap:10px}.mission-history-row>div span{font-size:10px;color:#77d6ff;border:1px solid #275069;border-radius:999px;padding:3px 7px}.mission-history-row p{margin:7px 0 4px;color:#c5d5de}.mission-history-row time{font-size:11px;color:#708b9a}
+.mission-technical summary{cursor:pointer;font-weight:800;color:#a8dfff}.mission-technical .issue-body{margin-top:14px;max-height:50vh}
+@media(max-width:780px){
+ .topbar{height:58px;min-height:58px;padding:0 10px}.account img,.avatar-fallback{width:34px;height:34px}.account>div>span{display:none}.freshness{font-size:11px}.top-actions{gap:7px}.icon-btn{width:38px;height:38px}
+ .main{padding:12px 12px 86px}.tab-head{gap:7px;margin-bottom:12px}.tab-head h1{font-size:29px;line-height:1}.tab-head p{font-size:13px}.live-badge{align-self:flex-start;font-size:10px;padding:6px 9px}
+ .mission-v2{gap:10px}.mission-v2-hero,.mission-progress-card,.mission-now,.mission-blocker,.mission-technical{padding:15px;border-radius:15px}.mission-v2-hero h2{font-size:30px;line-height:1.04}.mission-v2-sub{font-size:15px;margin-bottom:12px}.mission-phase{display:flex;font-size:13px;line-height:1.25}.mission-v2-actions{flex-wrap:wrap}
+ .mission-v2-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.mission-v2-metrics>div{padding:11px 6px;border-radius:13px}.mission-v2-metrics strong{font-size:18px}.mission-v2-metrics span{font-size:9px}
+ .mission-progress-card>.row{align-items:flex-start}.mission-progress-card small{max-width:48%;text-align:right;font-size:10px}.mission-progress-card strong{font-size:23px}
+ .mission-v2-columns{grid-template-columns:1fr}.mission-road-row{grid-template-columns:9px 32px minmax(0,1fr);padding:10px 0}.mission-road-row em{grid-column:3;font-size:9px;text-align:left;margin-top:-5px}.mission-history-row p{font-size:13px;line-height:1.45}
+ .mission-technical .issue-body{font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+ .mobile-nav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;z-index:80;left:0;right:0;bottom:0;height:68px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));background:rgba(5,14,22,.97);border-top:1px solid #234253;backdrop-filter:blur(16px)}
+ .mobile-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#6f8c9e;text-decoration:none;border-radius:10px;font-size:10px}.mobile-nav a span{font-size:18px;line-height:1}.mobile-nav a b{font-size:9px;font-weight:700}.mobile-nav a.active{color:#dff6ff;background:#102838}
+}

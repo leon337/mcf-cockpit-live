@@ -3,6 +3,8 @@ const path = require('path');
 
 const OWNER = 'leon337';
 const PRIMARY = 'multiagent-collaboration-framework';
+const LIVE_BRANCH = 'prototype/mcf-harness-v2-event-runtime-20260918';
+const LIVE_DASHBOARD_PATH = 'artifacts/phases/PHASE-02-MCF-HARNESS-V2-PROTOTYPE/LIVE-DASHBOARD.json';
 const REPO_ALLOWLIST = [
   'multiagent-collaboration-framework',
   'cloud-infrastructure',
@@ -60,9 +62,9 @@ function issueToMission(issue) {
     number: issue.number,
     title: issue.title,
     state: issue.state,
-    url: issue.html_url,
-    updatedAt: issue.updated_at,
-    createdAt: issue.created_at,
+    url: issue.html_url || issue.url,
+    updatedAt: issue.updated_at || issue.updatedAt,
+    createdAt: issue.created_at || issue.createdAt,
     body,
     labels: (issue.labels || []).map((label) => typeof label === 'string' ? label : label.name),
     checklist: checks,
@@ -92,7 +94,8 @@ module.exports = async function handler(req, res) {
       events,
       commits,
       releases,
-      agentMarkdown
+      agentMarkdown,
+      liveDashboardRaw
     ] = await Promise.all([
       jsonFetch(base + '/users/' + OWNER + '/repos?per_page=100&sort=updated&type=owner'),
       jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/issues?state=open&per_page=50&sort=updated'),
@@ -100,7 +103,8 @@ module.exports = async function handler(req, res) {
       jsonFetch(base + '/users/' + OWNER + '/events/public?per_page=30'),
       jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/commits?per_page=20'),
       jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/releases?per_page=10'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/contents/docs/agentes/README.md', 'application/vnd.github.raw+json')
+      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/contents/docs/agentes/README.md', 'application/vnd.github.raw+json'),
+      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/contents/' + LIVE_DASHBOARD_PATH + '?ref=' + encodeURIComponent(LIVE_BRANCH), 'application/vnd.github.raw+json').catch(() => null)
     ]);
 
     const repos = allRepos
@@ -127,10 +131,10 @@ module.exports = async function handler(req, res) {
       .map((issue) => ({
         number: issue.number,
         title: issue.title,
-        url: issue.html_url,
+        url: issue.html_url || issue.url,
         state: issue.state,
-        createdAt: issue.created_at,
-        updatedAt: issue.updated_at,
+        createdAt: issue.created_at || issue.createdAt,
+        updatedAt: issue.updated_at || issue.updatedAt,
         comments: issue.comments,
         labels: (issue.labels || []).map((label) => typeof label === 'string' ? label : label.name),
         body: issue.body || ''
@@ -186,9 +190,28 @@ module.exports = async function handler(req, res) {
     }));
 
     const agents = parseAgents(agentMarkdown);
-    const missionCandidate = issues
-      .filter((issue) => /^MCF-|\bmission\b/i.test(issue.title))
-      .sort((a, b) => b.number - a.number)[0] || issues[0] || null;
+
+    let missionLive = null;
+    if (liveDashboardRaw) {
+      try { missionLive = JSON.parse(liveDashboardRaw); } catch {}
+    }
+
+    const requestedMission = Number(req.query && req.query.mission);
+    const liveIssueMatch = missionLive && missionLive.links && missionLive.links.issue
+      ? String(missionLive.links.issue).match(/\/issues\/(\d+)/)
+      : null;
+    const liveIssueNumber = liveIssueMatch ? Number(liveIssueMatch[1]) : null;
+    const preferredMissionNumber = Number.isFinite(requestedMission) && requestedMission > 0
+      ? requestedMission
+      : liveIssueNumber;
+
+    const missionCandidate =
+      (preferredMissionNumber ? issues.find((issue) => issue.number === preferredMissionNumber) : null) ||
+      issues
+        .filter((issue) => /^MCF-|\bmission\b/i.test(issue.title))
+        .sort((a, b) => b.number - a.number)[0] ||
+      issues[0] ||
+      null;
 
     const primaryRepo = repos.find((repo) => repo.name === PRIMARY) || null;
     const avatar = primaryRepo && primaryRepo.ownerAvatar;
@@ -211,6 +234,7 @@ module.exports = async function handler(req, res) {
       releases: releaseData,
       agents,
       mission: issueToMission(missionCandidate),
+      missionLive,
       localIntegrations: {
         voiceHub: {
           scope: 'local-only',
