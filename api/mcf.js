@@ -3,7 +3,7 @@ const path = require('path');
 
 const OWNER = 'leon337';
 const PRIMARY = 'multiagent-collaboration-framework';
-const LIVE_BRANCH = 'prototype/mcf-harness-v2-event-runtime-20260918';
+const LIVE_BRANCH = 'main';
 const LIVE_DASHBOARD_PATH = 'artifacts/phases/PHASE-02-MCF-HARNESS-V2-PROTOTYPE/LIVE-DASHBOARD.json';
 const REPO_ALLOWLIST = [
   'multiagent-collaboration-framework',
