@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const apiHandler = require('./api/mcf');
+const missionLiveHandler = require('./api/mission-live');
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 3000);
@@ -55,7 +56,14 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
 
     if (url.pathname === '/api/mcf') {
-      await adaptApi(req, res, url);
+      req.query = Object.fromEntries(url.searchParams.entries());
+      await apiHandler(req, res);
+      return;
+    }
+
+    if (url.pathname === '/api/mission-live') {
+      req.query = Object.fromEntries(url.searchParams.entries());
+      await missionLiveHandler(req, res);
       return;
     }
 
