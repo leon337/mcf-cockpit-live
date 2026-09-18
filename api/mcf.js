@@ -37,6 +37,48 @@ async function jsonFetch(url, accept) {
   return response.json();
 }
 
+async function safeFetch(url, accept, fallbackValue) {
+  try {
+    return await jsonFetch(url, accept);
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function missionFromLive(live) {
+  if (!live) return null;
+  const issueMatch = live.links && live.links.issue
+    ? String(live.links.issue).match(/\/issues\/(\d+)/)
+    : null;
+  const checks = (live.roadmap || []).map((item) => {
+    const status = String(item.status || '');
+    const done = /PASS|STABLE|COMPLETED|DONE/.test(status) && !/PENDING|BLOCKED/.test(status);
+    return { done, text: item.id + ' — ' + item.name + ' — ' + status.replaceAll('_', ' ') };
+  });
+  const done = checks.filter((x) => x.done).length;
+  const body = [
+    '# ' + (live.title || 'MCF Harness V2'),
+    '',
+    '**Status:** ' + (live.status || 'UNKNOWN'),
+    '**Fase:** ' + (live.current_phase || 'UNKNOWN'),
+    '',
+    '## Roadmap',
+    ...checks.map((x) => '- [' + (x.done ? 'x' : ' ') + '] ' + x.text)
+  ].join('\n');
+  return {
+    number: issueMatch ? Number(issueMatch[1]) : 234,
+    title: live.status === 'ENTREGUE' ? 'MCF-Harness V2 — 2.0.0 ENTREGUE' : (live.title || 'MCF Harness V2'),
+    state: live.status === 'ENTREGUE' ? 'closed' : 'open',
+    url: live.links && live.links.issue,
+    updatedAt: live.updated_at,
+    createdAt: null,
+    body,
+    labels: [],
+    checklist: checks,
+    progress: checks.length ? Math.round((done / checks.length) * 100) : null
+  };
+}
+
 function parseAgents(markdown) {
   const rows = String(markdown || '').split('\n');
   const agents = [];
@@ -97,14 +139,14 @@ module.exports = async function handler(req, res) {
       agentMarkdown,
       liveDashboardRaw
     ] = await Promise.all([
-      jsonFetch(base + '/users/' + OWNER + '/repos?per_page=100&sort=updated&type=owner'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/issues?state=open&per_page=50&sort=updated'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/pulls?state=open&per_page=50&sort=updated'),
-      jsonFetch(base + '/users/' + OWNER + '/events/public?per_page=30'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/commits?per_page=20'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/releases?per_page=10'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/contents/docs/agentes/README.md', 'application/vnd.github.raw+json'),
-      jsonFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/contents/' + LIVE_DASHBOARD_PATH + '?ref=' + encodeURIComponent(LIVE_BRANCH), 'application/vnd.github.raw+json').catch(() => null)
+      safeFetch(base + '/users/' + OWNER + '/repos?per_page=100&sort=updated&type=owner', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/issues?state=all&per_page=100&sort=updated', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/pulls?state=open&per_page=50&sort=updated', null, []),
+      safeFetch(base + '/users/' + OWNER + '/events/public?per_page=30', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/commits?per_page=20', null, []),
+      safeFetch(base + '/repos/' + OWNER + '/' + PRIMARY + '/releases?per_page=10', null, []),
+      safeFetch('https://raw.githubusercontent.com/' + OWNER + '/' + PRIMARY + '/' + LIVE_BRANCH + '/docs/agentes/README.md', 'application/vnd.github.raw+json', ''),
+      safeFetch('https://raw.githubusercontent.com/' + OWNER + '/' + PRIMARY + '/' + LIVE_BRANCH + '/' + LIVE_DASHBOARD_PATH, 'application/vnd.github.raw+json', null)
     ]);
 
     const repos = allRepos
@@ -218,7 +260,7 @@ module.exports = async function handler(req, res) {
 
     const payload = {
       generatedAt: new Date().toISOString(),
-      source: 'GitHub REST API — public data',
+      source: 'GitHub public data + stable raw mission feed',
       cacheSeconds: 600,
       user: {
         login: OWNER,
@@ -233,7 +275,7 @@ module.exports = async function handler(req, res) {
       commits: commitData,
       releases: releaseData,
       agents,
-      mission: issueToMission(missionCandidate),
+      mission: issueToMission(missionCandidate) || missionFromLive(missionLive),
       missionLive,
       localIntegrations: {
         voiceHub: {
