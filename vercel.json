@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    {"source": "/concept-1", "destination": "/concept-1.html"},
+    {"source": "/concept-2", "destination": "/concept-2.html"},
+    {"source": "/concept-3", "destination": "/concept-3.html"},
+    {"source": "/concept-4", "destination": "/concept-4.html"}
+  ],
+  "headers": [
+    {"source": "/api/(.*)", "headers": [{"key": "Access-Control-Allow-Origin", "value": "*"}]},
+    {"source": "/assets/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=300"}]}
+  ]
+}

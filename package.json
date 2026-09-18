@@ -1,0 +1,7 @@
+{
+  "name": "mcf-cockpit-live",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCF Cockpit LIVE — four real-data prototypes",
+  "scripts": {"check": "node --check api/mcf.js && node --check assets/app.js"}
+}
